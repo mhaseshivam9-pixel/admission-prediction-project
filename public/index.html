@@ -2,69 +2,191 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admission Prediction Project</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admission Prediction</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 750px;
-      margin: 50px auto;
+      max-width: 800px;
+      margin: 35px auto;
       padding: 20px;
-      line-height: 1.6;
-      background: #f5f7fb;
+      background: #f4f6fb;
       color: #172033;
     }
+
     main {
       background: white;
       padding: 28px;
       border-radius: 14px;
-      box-shadow: 0 4px 18px #00000010;
+      box-shadow: 0 4px 20px #00000012;
     }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    input, select {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 11px;
+      border: 1px solid #ccd2df;
+      border-radius: 7px;
+    }
+
     button {
-      padding: 12px 18px;
+      margin-top: 22px;
+      padding: 13px 20px;
       border: 0;
       border-radius: 8px;
-      cursor: pointer;
       background: #2457d6;
       color: white;
+      font-weight: bold;
+      cursor: pointer;
     }
-    #status { margin-top: 18px; }
+
+    #result {
+      margin-top: 22px;
+      padding: 16px;
+      border-radius: 8px;
+      background: #f1f5ff;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 600px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
+
 <body>
-  <main>
-    <h1>Admission Prediction</h1>
-    <p>
-      A machine-learning project for estimating graduate
-      admission chances from applicant information.
-    </p>
-    <p>
-      This application uses a trained regression model.
-      Its predictions are estimates, not admission decisions.
-    </p>
-    <button id="check">Check API connection</button>
-    <p id="status">API status has not been checked yet.</p>
-  </main>
+<main>
+  <h1>Graduate Admission Prediction</h1>
 
-  <script>
-    document.getElementById("check").addEventListener("click", async () => {
-      const status = document.getElementById("status");
-      status.textContent = "Checking connection...";
+  <p>
+    Enter the applicant's academic profile to estimate
+    their Chance of Admit using the trained regression model.
+  </p>
 
-      try {
-        const response = await fetch("/api");
-        const data = await response.json();
+  <form id="predictionForm">
+    <div class="grid">
+      <div>
+        <label for="gre">GRE Score (260–340)</label>
+        <input id="gre" type="number" min="260" max="340"
+               step="1" required value="320">
+      </div>
 
-        if (!response.ok) {
-          throw new Error("API returned an error.");
-        }
+      <div>
+        <label for="toefl">TOEFL Score (0–120)</label>
+        <input id="toefl" type="number" min="0" max="120"
+               step="1" required value="110">
+      </div>
 
-        status.textContent = data.message || "API connected.";
-      } catch (error) {
-        status.textContent =
-          "Could not connect to the API. Check the deployment logs.";
-      }
+      <div>
+        <label for="rating">University Rating (1–5)</label>
+        <select id="rating" required>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="sop">SOP Rating (1–5)</label>
+        <input id="sop" type="number" min="1" max="5"
+               step="0.5" required value="4">
+      </div>
+
+      <div>
+        <label for="lor">LOR Rating (1–5)</label>
+        <input id="lor" type="number" min="1" max="5"
+               step="0.5" required value="4">
+      </div>
+
+      <div>
+        <label for="cgpa">CGPA (0–10)</label>
+        <input id="cgpa" type="number" min="0" max="10"
+               step="0.01" required value="9">
+      </div>
+
+      <div>
+        <label for="research">Research Experience</label>
+        <select id="research" required>
+          <option value="0">No</option>
+          <option value="1" selected>Yes</option>
+        </select>
+      </div>
+    </div>
+
+    <button type="submit">Predict Admission Chance</button>
+  </form>
+
+  <div id="result" role="status" aria-live="polite">
+    Enter the applicant details and select Predict.
+  </div>
+
+  <p>
+    Disclaimer: This is a model-generated estimate, not an
+    official admission probability or guarantee of admission.
+  </p>
+</main>
+
+<script>
+const form = document.getElementById("predictionForm");
+const result = document.getElementById("result");
+
+form.addEventListener("submit", async function(event) {
+  event.preventDefault();
+
+  const payload = {
+    "GRE Score": Number(document.getElementById("gre").value),
+    "TOEFL Score": Number(document.getElementById("toefl").value),
+    "University Rating": Number(document.getElementById("rating").value),
+    "SOP": Number(document.getElementById("sop").value),
+    "LOR": Number(document.getElementById("lor").value),
+    "CGPA": Number(document.getElementById("cgpa").value),
+    "Research": Number(document.getElementById("research").value)
+  };
+
+  result.textContent = "Generating prediction...";
+
+  try {
+    const response = await fetch("/api", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
     });
-  </script>
+
+    const data = await response.json();
+
+    if (!response.ok || data.status !== "success") {
+      throw new Error(data.message || "Prediction failed.");
+    }
+
+    result.textContent =
+      "Estimated Chance of Admit: " +
+      (data.predicted_percentage).toFixed(2) +
+      "%\n\n" +
+      data.interpretation;
+
+  } catch (error) {
+    result.textContent =
+      "Could not generate prediction: " + error.message;
+  }
+});
+</script>
 </body>
 </html>
