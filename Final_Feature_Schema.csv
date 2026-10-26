@@ -1,0 +1,17 @@
+Feature_Order,Feature
+1,GRE Score
+2,TOEFL Score
+3,University Rating
+4,SOP
+5,LOR
+6,CGPA
+7,Research
+8,GRE_TOEFL_Combined
+9,GRE_TOEFL_Average
+10,Application_Profile_Score
+11,Academic_Strength
+12,Research_CGPA_Interaction
+13,CGPA_University_Interaction
+14,SOP_LOR_Interaction
+15,GRE_CGPA_Interaction
+16,TOEFL_CGPA_Interaction
