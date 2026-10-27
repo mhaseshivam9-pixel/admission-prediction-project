@@ -14,7 +14,6 @@ import pandas as pd
 # ============================================================
 
 ROOT = Path(__file__).resolve().parent.parent
-
 MODEL_PATH = ROOT / "Final_Admission_Prediction_Model.pkl"
 
 RAW_FEATURES = [
@@ -35,7 +34,7 @@ _MODEL = None
 
 # ============================================================
 # PHASE 6 FEATURE ENGINEERING
-# Keep these transformations identical to your notebook.
+# 7 original features + 9 engineered features = 16 features
 # ============================================================
 
 def create_engineered_features(data):
@@ -57,8 +56,8 @@ def create_engineered_features(data):
 
     data["Academic_Strength"] = (
         data["CGPA"]
-        + (data["GRE Score"] / 34)
-        + (data["TOEFL Score"] / 12)
+        + data["GRE Score"] / 34
+        + data["TOEFL Score"] / 12
     ) / 3
 
     data["Research_CGPA_Interaction"] = (
@@ -85,6 +84,25 @@ def create_engineered_features(data):
 
 
 # ============================================================
+# JSON RESPONSE HELPERS
+# ============================================================
+
+def make_json_response(
+    status,
+    message,
+    status_code=200,
+    **extra
+):
+    payload = {
+        "status": status,
+        "message": message,
+        **extra,
+    }
+
+    return status_code, payload
+
+
+# ============================================================
 # MODEL LOADING
 # ============================================================
 
@@ -96,21 +114,23 @@ def load_model():
 
     if not MODEL_PATH.is_file():
         raise FileNotFoundError(
-            f"Model file not found at: {MODEL_PATH}"
+            "The model file is missing from the deployed project."
         )
 
     logger.info("Loading model from %s", MODEL_PATH)
 
+    # Package versions must be compatible with those used
+    # when the model was saved.
     _MODEL = joblib.load(MODEL_PATH)
 
     logger.info(
-        "Model loaded: %s",
-        type(_MODEL).__name__
+        "Model loaded successfully: %s",
+        type(_MODEL).__name__,
     )
 
     logger.info(
-        "Expected feature count: %s",
-        getattr(_MODEL, "n_features_in_", "unknown")
+        "Model expected feature count: %s",
+        getattr(_MODEL, "n_features_in_", "unknown"),
     )
 
     return _MODEL
@@ -125,8 +145,8 @@ def validate_input(payload):
         raise ValueError("Request body must be a JSON object.")
 
     missing = [
-        name for name in RAW_FEATURES
-        if name not in payload
+        feature for feature in RAW_FEATURES
+        if feature not in payload
     ]
 
     if missing:
@@ -136,31 +156,39 @@ def validate_input(payload):
 
     values = {}
 
-    for name in RAW_FEATURES:
-        value = payload[name]
+    for feature in RAW_FEATURES:
+        value = payload[feature]
 
         if isinstance(value, bool):
-            raise ValueError(f"{name} must be numeric.")
+            raise ValueError(
+                f"{feature} must be a numeric value."
+            )
 
         try:
             value = float(value)
         except (TypeError, ValueError):
-            raise ValueError(f"{name} must be numeric.")
+            raise ValueError(
+                f"{feature} must be a numeric value."
+            )
 
         if not np.isfinite(value):
-            raise ValueError(f"{name} must be finite.")
+            raise ValueError(
+                f"{feature} must be a finite number."
+            )
 
-        values[name] = value
+        values[feature] = value
 
     if not 260 <= values["GRE Score"] <= 340:
-        raise ValueError("GRE Score must be between 260 and 340.")
+        raise ValueError(
+            "GRE Score must be between 260 and 340."
+        )
 
     if not 0 <= values["TOEFL Score"] <= 120:
-        raise ValueError("TOEFL Score must be between 0 and 120.")
+        raise ValueError(
+            "TOEFL Score must be between 0 and 120."
+        )
 
-    if (
-        values["University Rating"] not in [1, 2, 3, 4, 5]
-    ):
+    if values["University Rating"] not in [1, 2, 3, 4, 5]:
         raise ValueError(
             "University Rating must be an integer from 1 to 5."
         )
@@ -189,7 +217,7 @@ def make_prediction(payload):
 
     raw_data = pd.DataFrame(
         [values],
-        columns=RAW_FEATURES
+        columns=RAW_FEATURES,
     )
 
     engineered_data = create_engineered_features(raw_data)
@@ -199,7 +227,7 @@ def make_prediction(payload):
     expected_count = getattr(
         trained_model,
         "n_features_in_",
-        None
+        None,
     )
 
     if (
@@ -208,14 +236,14 @@ def make_prediction(payload):
     ):
         raise RuntimeError(
             f"Feature-count mismatch: model expects "
-            f"{expected_count}, but API generated "
+            f"{expected_count} features, but the API generated "
             f"{engineered_data.shape[1]}."
         )
 
     expected_names = getattr(
         trained_model,
         "feature_names_in_",
-        None
+        None,
     )
 
     if expected_names is not None:
@@ -224,24 +252,36 @@ def make_prediction(payload):
 
         if expected_names != actual_names:
             raise RuntimeError(
-                "Feature-name or feature-order mismatch. "
-                f"Expected {expected_names}; "
-                f"received {actual_names}."
+                "Feature names or feature order do not match "
+                "the trained model."
             )
 
     prediction = float(
-        trained_model.predict(engineered_data)[0]
+        np.asarray(
+            trained_model.predict(engineered_data)
+        ).reshape(-1)[0]
     )
 
     if not np.isfinite(prediction):
-        raise RuntimeError("Model returned a non-finite prediction.")
+        raise RuntimeError(
+            "The model returned an invalid numeric prediction."
+        )
 
+    # Return multiple compatible field names so the frontend
+    # can read the result using its existing response handling.
     return {
         "status": "success",
+        "message": "Prediction generated successfully.",
+
+        "prediction": prediction,
         "predicted_chance": prediction,
+        "chance_of_admit": prediction,
+
         "predicted_percentage": prediction * 100,
+
         "interpretation": (
-            "Model estimate only; not an admission decision."
+            "Model-generated estimate only; "
+            "not an admission decision."
         ),
     }
 
@@ -253,22 +293,30 @@ def make_prediction(payload):
 class handler(BaseHTTPRequestHandler):
 
     def send_json(self, status_code, payload):
-        body = json.dumps(payload).encode("utf-8")
+        body = json.dumps(
+            payload,
+            allow_nan=False,
+        ).encode("utf-8")
 
         self.send_response(status_code)
+
         self.send_header(
             "Content-Type",
-            "application/json; charset=utf-8"
+            "application/json; charset=utf-8",
         )
+
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
+
         self.wfile.write(body)
 
     def do_GET(self):
-        if self.path.rstrip("/") != "/api":
+        if self.path.split("?")[0].rstrip("/") != "/api":
             self.send_json(404, {
                 "status": "error",
-                "message": "Endpoint not found."
+                "error": "Endpoint not found.",
+                "message": "Endpoint not found.",
             })
             return
 
@@ -280,10 +328,11 @@ class handler(BaseHTTPRequestHandler):
         })
 
     def do_POST(self):
-        if self.path.rstrip("/") != "/api":
+        if self.path.split("?")[0].rstrip("/") != "/api":
             self.send_json(404, {
                 "status": "error",
-                "message": "Endpoint not found."
+                "error": "Endpoint not found.",
+                "message": "Endpoint not found.",
             })
             return
 
@@ -295,41 +344,56 @@ class handler(BaseHTTPRequestHandler):
             if content_length <= 0 or content_length > 10000:
                 self.send_json(400, {
                     "status": "error",
-                    "message": "Invalid request size."
+                    "error": "Invalid request size.",
+                    "message": "Invalid request size.",
                 })
                 return
 
             raw_body = self.rfile.read(content_length)
 
             try:
-                payload = json.loads(raw_body.decode("utf-8"))
-            except (UnicodeDecodeError, json.JSONDecodeError):
+                payload = json.loads(
+                    raw_body.decode("utf-8")
+                )
+            except (
+                UnicodeDecodeError,
+                json.JSONDecodeError,
+            ):
                 self.send_json(400, {
                     "status": "error",
-                    "message": "Request body must contain valid JSON."
+                    "error": "Request body must contain valid JSON.",
+                    "message": "Request body must contain valid JSON.",
                 })
                 return
 
             result = make_prediction(payload)
+
             self.send_json(200, result)
 
         except ValueError as exc:
             self.send_json(400, {
                 "status": "error",
-                "message": str(exc)
+                "error": str(exc),
+                "message": str(exc),
             })
 
         except Exception as exc:
             logger.error(
                 "PREDICTION ERROR: %s: %s",
                 type(exc).__name__,
-                str(exc)
+                str(exc),
             )
+
             logger.error(traceback.format_exc())
+
+            # Include the exception type and message to help
+            # diagnose deployment/model compatibility problems.
+            diagnostic = (
+                f"{type(exc).__name__}: {str(exc)}"
+            )
 
             self.send_json(500, {
                 "status": "error",
-                "message": (
-                    "Prediction failed. Check Vercel runtime logs."
-                )
+                "error": diagnostic,
+                "message": diagnostic,
             })
