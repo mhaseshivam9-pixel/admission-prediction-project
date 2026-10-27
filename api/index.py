@@ -1,3 +1,4 @@
+import traceback
 import json
 import os
 from pathlib import Path
@@ -265,10 +266,13 @@ class handler(BaseHTTPRequestHandler):
                 "message": str(exc)
             })
 
-        except Exception:
-            self.send_json(500, {
-                "status": "error",
-                "message": (
-                    "Prediction failed. Check Vercel runtime logs."
-                )
-            })
+        except Exception as exc:
+    print("PREDICTION ERROR:", repr(exc))
+    traceback.print_exc()
+
+    self.send_json(500, {
+        "status": "error",
+        "message": (
+            "Prediction failed. Check Vercel runtime logs."
+        )
+    })
