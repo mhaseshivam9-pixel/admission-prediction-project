@@ -6,35 +6,37 @@
   <title>Graduate Admission Prediction</title>
 
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
       padding: 30px 16px;
       font-family: Arial, Helvetica, sans-serif;
-      background: #f3f4f6;
+      background: #f3f5f9;
       color: #222;
     }
 
     .container {
-      max-width: 900px;
+      max-width: 1050px;
       margin: 20px auto;
-      padding: 32px;
+      padding: 35px;
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     }
 
     h1 {
-      margin: 0 0 14px;
-      font-size: 32px;
-      color: #111827;
+      margin: 0 0 15px;
+      font-size: 34px;
+      color: #171717;
     }
 
     .description {
-      color: #4b5563;
+      margin-bottom: 25px;
       line-height: 1.5;
-      margin-bottom: 24px;
+      color: #444;
     }
 
     .form-grid {
@@ -43,145 +45,131 @@
       gap: 20px;
     }
 
-    .form-group {
+    .field {
       display: flex;
       flex-direction: column;
       gap: 8px;
-      min-width: 0;
     }
 
     label {
-      font-weight: 600;
-      font-size: 16px;
+      font-size: 17px;
+      font-weight: bold;
     }
 
-    input, select {
+    input,
+    select {
       width: 100%;
-      padding: 13px 12px;
-      font-size: 16px;
-      color: #222;
+      min-height: 48px;
+      padding: 12px;
+      border: 1px solid #d5d9df;
+      border-radius: 7px;
       background: #fff;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
+      color: #222;
+      font-size: 16px;
     }
 
-    input:focus, select:focus {
-      outline: 2px solid #93c5fd;
+    input:focus,
+    select:focus {
+      outline: 2px solid #9bbcff;
       border-color: #2563eb;
     }
 
-    .research-group {
+    .research-field {
       margin-top: 20px;
       max-width: calc(50% - 10px);
     }
 
-    #predictButton {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
+    button {
       margin-top: 24px;
       padding: 15px 24px;
       border: none;
       border-radius: 8px;
-      background: #2563eb;
+      background: #1763d1;
       color: white;
       font-size: 16px;
-      font-weight: 600;
+      font-weight: bold;
       cursor: pointer;
-      transition: background-color 0.2s ease, opacity 0.2s ease;
+      transition: background 0.2s, opacity 0.2s;
     }
 
-    #predictButton:hover:not(:disabled) {
-      background: #1d4ed8;
+    button:hover:not(:disabled) {
+      background: #104da8;
     }
 
-    #predictButton:disabled {
+    button:disabled {
       background: #9ca3af;
-      color: #f9fafb;
+      color: #f3f4f6;
       cursor: not-allowed;
-      opacity: 0.8;
+      opacity: 0.85;
     }
 
-    .spinner {
-      width: 17px;
-      height: 17px;
-      border: 2px solid rgba(255, 255, 255, 0.45);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
+    #result {
       display: none;
-    }
-
-    #predictButton:disabled .spinner {
-      display: inline-block;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    #statusMessage {
       margin-top: 22px;
-      padding: 14px;
-      border-radius: 7px;
+      padding: 18px;
+      border-radius: 8px;
       line-height: 1.5;
       overflow-wrap: anywhere;
     }
 
-    #statusMessage:empty {
-      display: none;
-    }
-
-    .status-loading {
-      background: #f3f4f6;
-      color: #4b5563;
-    }
-
-    .status-success {
-      background: #ecfdf5;
-      border: 1px solid #a7f3d0;
-      color: #065f46;
-    }
-
-    .status-error {
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      color: #991b1b;
-    }
-
-    .result-value {
+    #result.success {
       display: block;
-      margin-top: 8px;
-      font-size: 30px;
-      font-weight: 700;
+      background: #ecfdf3;
+      border: 1px solid #a7e8c0;
+      color: #166534;
+    }
+
+    #result.error {
+      display: block;
+      background: #fff1f0;
+      border: 1px solid #ffc9c5;
+      color: #a32118;
+    }
+
+    .result-label {
+      margin-bottom: 5px;
+      font-size: 17px;
+      font-weight: bold;
+    }
+
+    .percentage {
+      margin: 8px 0;
+      font-size: 36px;
+      font-weight: bold;
     }
 
     .disclaimer {
-      margin-top: 24px;
-      color: #6b7280;
+      margin-top: 25px;
+      color: #555;
       font-size: 14px;
       line-height: 1.5;
     }
 
-    @media (max-width: 600px) {
-      body { padding: 12px; }
-
-      .container {
-        padding: 22px 18px;
-        margin: 10px auto;
+    @media (max-width: 650px) {
+      body {
+        padding: 12px;
       }
 
-      h1 { font-size: 26px; }
+      .container {
+        margin: 8px auto;
+        padding: 22px 18px;
+      }
+
+      h1 {
+        font-size: 27px;
+      }
 
       .form-grid {
         grid-template-columns: 1fr;
-        gap: 18px;
       }
 
-      .research-group { max-width: 100%; }
+      .research-field {
+        max-width: 100%;
+      }
 
-      #predictButton { width: 100%; }
+      button {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -197,21 +185,37 @@
 
     <form id="admissionForm">
       <div class="form-grid">
-        <div class="form-group">
+        <div class="field">
           <label for="gre">GRE Score (260–340)</label>
-          <input id="gre" type="number" min="260" max="340"
-                 step="1" value="320" required>
+          <input
+            id="gre"
+            name="GRE Score"
+            type="number"
+            min="260"
+            max="340"
+            step="1"
+            value="320"
+            required
+          >
         </div>
 
-        <div class="form-group">
+        <div class="field">
           <label for="toefl">TOEFL Score (0–120)</label>
-          <input id="toefl" type="number" min="0" max="120"
-                 step="1" value="110" required>
+          <input
+            id="toefl"
+            name="TOEFL Score"
+            type="number"
+            min="0"
+            max="120"
+            step="1"
+            value="110"
+            required
+          >
         </div>
 
-        <div class="form-group">
+        <div class="field">
           <label for="university">University Rating (1–5)</label>
-          <select id="university" required>
+          <select id="university" name="University Rating" required>
             <option value="1">1</option>
             <option value="2">2</option>
             <option value="3">3</option>
@@ -220,40 +224,67 @@
           </select>
         </div>
 
-        <div class="form-group">
+        <div class="field">
           <label for="sop">SOP Rating (1–5)</label>
-          <input id="sop" type="number" min="1" max="5"
-                 step="0.5" value="4" required>
+          <input
+            id="sop"
+            name="SOP"
+            type="number"
+            min="1"
+            max="5"
+            step="0.5"
+            value="4"
+            required
+          >
         </div>
 
-        <div class="form-group">
+        <div class="field">
           <label for="lor">LOR Rating (1–5)</label>
-          <input id="lor" type="number" min="1" max="5"
-                 step="0.5" value="4" required>
+          <input
+            id="lor"
+            name="LOR"
+            type="number"
+            min="1"
+            max="5"
+            step="0.5"
+            value="4"
+            required
+          >
         </div>
 
-        <div class="form-group">
+        <div class="field">
           <label for="cgpa">CGPA (0–10)</label>
-          <input id="cgpa" type="number" min="0" max="10"
-                 step="0.01" value="9" required>
+          <input
+            id="cgpa"
+            name="CGPA"
+            type="number"
+            min="0"
+            max="10"
+            step="0.01"
+            value="9"
+            required
+          >
         </div>
       </div>
 
-      <div class="form-group research-group">
+      <div class="field research-field">
         <label for="research">Research Experience</label>
-        <select id="research" required>
+        <select id="research" name="Research" required>
           <option value="1" selected>Yes</option>
           <option value="0">No</option>
         </select>
       </div>
 
       <button id="predictButton" type="submit">
-        <span class="spinner" aria-hidden="true"></span>
-        <span id="buttonText">Predict Admission Chance</span>
+        Predict Admission Chance
       </button>
     </form>
 
-    <div id="statusMessage" role="status" aria-live="polite"></div>
+    <div
+      id="result"
+      role="status"
+      aria-live="polite"
+    ></div>
 
     <p class="disclaimer">
       Disclaimer: This is a model-generated estimate, not an official
@@ -263,52 +294,67 @@
 
   <script>
     const form = document.getElementById("admissionForm");
-    const predictButton = document.getElementById("predictButton");
-    const buttonText = document.getElementById("buttonText");
-    const statusMessage = document.getElementById("statusMessage");
+    const button = document.getElementById("predictButton");
+    const resultBox = document.getElementById("result");
 
-    let isPredicting = false;
+    function showError(message) {
+      resultBox.className = "error";
+      resultBox.replaceChildren();
 
-    function setLoading(loading) {
-      isPredicting = loading;
-      predictButton.disabled = loading;
-      predictButton.setAttribute("aria-busy", String(loading));
+      const title = document.createElement("div");
+      title.className = "result-label";
+      title.textContent = "Prediction could not be generated";
 
-      buttonText.textContent = loading
-        ? "Predicting..."
-        : "Predict Admission Chance";
+      const messageText = document.createElement("div");
+      messageText.textContent = message;
+
+      resultBox.append(title, messageText);
     }
 
-    function showMessage(message, type) {
-      statusMessage.className = type;
-      statusMessage.textContent = message;
-    }
+    function showPrediction(percentage) {
+      resultBox.className = "success";
+      resultBox.replaceChildren();
 
-    function getNumber(id) {
-      return Number(document.getElementById(id).value);
+      const title = document.createElement("div");
+      title.className = "result-label";
+      title.textContent = "Estimated Chance of Admit";
+
+      const value = document.createElement("div");
+      value.className = "percentage";
+      value.textContent = percentage.toFixed(2) + "%";
+
+      const note = document.createElement("div");
+      note.textContent =
+        "This is an estimate produced by your trained regression model.";
+
+      resultBox.append(title, value, note);
     }
 
     form.addEventListener("submit", async function (event) {
       event.preventDefault();
 
-      if (isPredicting) return;
-      if (!form.reportValidity()) return;
+      if (!form.reportValidity()) {
+        return;
+      }
+
+      // Make the button dull and prevent duplicate submissions.
+      button.disabled = true;
+      button.textContent = "Predicting... Please wait";
+      resultBox.className = "";
+      resultBox.style.display = "none";
+      resultBox.replaceChildren();
 
       const payload = {
-        "GRE Score": getNumber("gre"),
-        "TOEFL Score": getNumber("toefl"),
-        "University Rating": getNumber("university"),
-        "SOP": getNumber("sop"),
-        "LOR": getNumber("lor"),
-        "CGPA": getNumber("cgpa"),
-        "Research": getNumber("research")
+        "GRE Score": Number(form.elements["GRE Score"].value),
+        "TOEFL Score": Number(form.elements["TOEFL Score"].value),
+        "University Rating": Number(
+          form.elements["University Rating"].value
+        ),
+        "SOP": Number(form.elements["SOP"].value),
+        "LOR": Number(form.elements["LOR"].value),
+        "CGPA": Number(form.elements["CGPA"].value),
+        "Research": Number(form.elements["Research"].value)
       };
-
-      setLoading(true);
-      showMessage(
-        "Please wait while we calculate the admission estimate...",
-        "status-loading"
-      );
 
       try {
         const response = await fetch("/api", {
@@ -324,106 +370,76 @@
         let data;
 
         try {
-          data = responseText ? JSON.parse(responseText) : {};
+          data = JSON.parse(responseText);
         } catch {
           throw new Error(
-            "The server returned an invalid response. Check Vercel logs."
+            "The server returned an invalid response. " +
+            "Please check the Vercel runtime logs."
           );
         }
 
         if (!response.ok) {
           throw new Error(
-            data.error ||
             data.message ||
-            `Prediction request failed (HTTP ${response.status}).`
+            data.error ||
+            `The server returned HTTP ${response.status}.`
           );
         }
 
-        if (!data || typeof data !== "object") {
-          throw new Error("The API returned an unexpected response.");
-        }
-
-        // Accept the field names used by the current API and common alternatives.
-        const prediction =
-          data.predicted_chance ??
-          data.predicted_percentage ??
-          data.prediction ??
-          data.chance_of_admit ??
-          data.admission_chance ??
-          data.result;
-
-        if (
-          prediction === undefined ||
-          prediction === null ||
-          prediction === "" ||
-          !Number.isFinite(Number(prediction))
-        ) {
-          console.error("Unexpected API response:", data);
+        if (data.status && data.status !== "success") {
           throw new Error(
-            "The server response did not contain a valid prediction. " +
-            "Check the response fields in api/index.py."
+            data.message || "The prediction request failed."
           );
         }
 
-        const value = Number(prediction);
+        // Match the exact field names returned by your working API.
+        const rawPercentage = data.predicted_percentage;
 
-        // Prefer an explicit percentage field if the API provides one.
+        const rawChance = data.predicted_chance;
+
         let percentage;
 
         if (
-          data.predicted_percentage !== undefined &&
-          data.predicted_percentage !== null
+          rawPercentage !== undefined &&
+          rawPercentage !== null &&
+          rawPercentage !== ""
         ) {
-          percentage = Number(data.predicted_percentage);
+          percentage = Number(rawPercentage);
         } else if (
-          data.prediction_is_percentage === true ||
-          data.predicted_chance_is_percentage === true
+          rawChance !== undefined &&
+          rawChance !== null &&
+          rawChance !== ""
         ) {
-          percentage = value;
+          percentage = Number(rawChance) * 100;
         } else {
-          // Typical Chance of Admit regression output is between 0 and 1.
-          percentage = value >= 0 && value <= 1
-            ? value * 100
-            : value;
-        }
+          console.error("Unexpected API response:", data);
 
-        if (!Number.isFinite(percentage) ||
-            percentage < 0 ||
-            percentage > 100) {
-          console.error("Unexpected prediction value:", data);
           throw new Error(
-            "The model returned a value outside the expected 0–100% range."
+            "The API returned successfully but did not include " +
+            "predicted_percentage or predicted_chance."
           );
         }
 
-        statusMessage.className = "status-success";
-        statusMessage.replaceChildren();
+        if (!Number.isFinite(percentage)) {
+          throw new Error(
+            "The API returned a prediction that is not a valid number."
+          );
+        }
 
-        const heading = document.createElement("strong");
-        heading.textContent = "Predicted Admission Chance";
+        // This model predicts a chance on a 0–1 scale, shown as 0–100%.
+        // Keep the displayed percentage within the valid percentage range.
+        percentage = Math.max(0, Math.min(100, percentage));
 
-        const result = document.createElement("span");
-        result.className = "result-value";
-        result.textContent = percentage.toFixed(2) + "%";
-
-        const note = document.createElement("p");
-        note.textContent =
-          "This is a model-generated estimate, not a guarantee of admission.";
-
-        statusMessage.append(heading, result, note);
+        showPrediction(percentage);
 
       } catch (error) {
-        console.error("Admission prediction failed:", error);
-
-        showMessage(
-          "Could not generate prediction: " +
-          (error.message || "An unexpected error occurred.") +
-          " Please check the Vercel runtime logs.",
-          "status-error"
-        );
-
+        console.error("Admission prediction error:", error);
+        showError(error.message || "An unexpected error occurred.");
       } finally {
-        setLoading(false);
+        // Restore the button whether prediction succeeds or fails.
+        button.disabled = false;
+        button.textContent = "Predict Admission Chance";
+        resultBox.style.display = "";
       }
     });
   </script>
