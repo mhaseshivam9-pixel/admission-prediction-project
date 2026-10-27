@@ -1,14 +1,17 @@
-import traceback
 import json
-import os
+import logging
+import traceback
 from pathlib import Path
+from http.server import BaseHTTPRequestHandler
 
 import joblib
 import numpy as np
 import pandas as pd
 
-from http.server import BaseHTTPRequestHandler
 
+# ============================================================
+# CONFIGURATION
+# ============================================================
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -24,22 +27,16 @@ RAW_FEATURES = [
     "Research",
 ]
 
-MODEL = None
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("admission_prediction")
+
+_MODEL = None
 
 
-def load_model():
-    global MODEL
-
-    if MODEL is None:
-        if not MODEL_PATH.exists():
-            raise FileNotFoundError(
-                "Trained model file not found."
-            )
-
-        MODEL = joblib.load(MODEL_PATH)
-
-    return MODEL
-
+# ============================================================
+# PHASE 6 FEATURE ENGINEERING
+# Keep these transformations identical to your notebook.
+# ============================================================
 
 def create_engineered_features(data):
     data = data.copy()
@@ -87,11 +84,45 @@ def create_engineered_features(data):
     return data
 
 
+# ============================================================
+# MODEL LOADING
+# ============================================================
+
+def load_model():
+    global _MODEL
+
+    if _MODEL is not None:
+        return _MODEL
+
+    if not MODEL_PATH.is_file():
+        raise FileNotFoundError(
+            f"Model file not found at: {MODEL_PATH}"
+        )
+
+    logger.info("Loading model from %s", MODEL_PATH)
+
+    _MODEL = joblib.load(MODEL_PATH)
+
+    logger.info(
+        "Model loaded: %s",
+        type(_MODEL).__name__
+    )
+
+    logger.info(
+        "Expected feature count: %s",
+        getattr(_MODEL, "n_features_in_", "unknown")
+    )
+
+    return _MODEL
+
+
+# ============================================================
+# INPUT VALIDATION
+# ============================================================
+
 def validate_input(payload):
     if not isinstance(payload, dict):
-        raise ValueError(
-            "Request body must be a JSON object."
-        )
+        raise ValueError("Request body must be a JSON object.")
 
     missing = [
         name for name in RAW_FEATURES
@@ -100,7 +131,7 @@ def validate_input(payload):
 
     if missing:
         raise ValueError(
-            f"Missing required fields: {missing}"
+            "Missing required fields: " + ", ".join(missing)
         )
 
     values = {}
@@ -109,21 +140,15 @@ def validate_input(payload):
         value = payload[name]
 
         if isinstance(value, bool):
-            raise ValueError(
-                f"{name} must be numeric."
-            )
+            raise ValueError(f"{name} must be numeric.")
 
         try:
             value = float(value)
         except (TypeError, ValueError):
-            raise ValueError(
-                f"{name} must be numeric."
-            )
+            raise ValueError(f"{name} must be numeric.")
 
         if not np.isfinite(value):
-            raise ValueError(
-                f"{name} must be a finite number."
-            )
+            raise ValueError(f"{name} must be finite.")
 
         values[name] = value
 
@@ -133,7 +158,9 @@ def validate_input(payload):
     if not 0 <= values["TOEFL Score"] <= 120:
         raise ValueError("TOEFL Score must be between 0 and 120.")
 
-    if values["University Rating"] not in [1, 2, 3, 4, 5]:
+    if (
+        values["University Rating"] not in [1, 2, 3, 4, 5]
+    ):
         raise ValueError(
             "University Rating must be an integer from 1 to 5."
         )
@@ -153,12 +180,82 @@ def validate_input(payload):
     return values
 
 
+# ============================================================
+# PREDICTION
+# ============================================================
+
+def make_prediction(payload):
+    values = validate_input(payload)
+
+    raw_data = pd.DataFrame(
+        [values],
+        columns=RAW_FEATURES
+    )
+
+    engineered_data = create_engineered_features(raw_data)
+
+    trained_model = load_model()
+
+    expected_count = getattr(
+        trained_model,
+        "n_features_in_",
+        None
+    )
+
+    if (
+        expected_count is not None
+        and expected_count != engineered_data.shape[1]
+    ):
+        raise RuntimeError(
+            f"Feature-count mismatch: model expects "
+            f"{expected_count}, but API generated "
+            f"{engineered_data.shape[1]}."
+        )
+
+    expected_names = getattr(
+        trained_model,
+        "feature_names_in_",
+        None
+    )
+
+    if expected_names is not None:
+        expected_names = list(expected_names)
+        actual_names = list(engineered_data.columns)
+
+        if expected_names != actual_names:
+            raise RuntimeError(
+                "Feature-name or feature-order mismatch. "
+                f"Expected {expected_names}; "
+                f"received {actual_names}."
+            )
+
+    prediction = float(
+        trained_model.predict(engineered_data)[0]
+    )
+
+    if not np.isfinite(prediction):
+        raise RuntimeError("Model returned a non-finite prediction.")
+
+    return {
+        "status": "success",
+        "predicted_chance": prediction,
+        "predicted_percentage": prediction * 100,
+        "interpretation": (
+            "Model estimate only; not an admission decision."
+        ),
+    }
+
+
+# ============================================================
+# VERCEL PYTHON HANDLER
+# ============================================================
+
 class handler(BaseHTTPRequestHandler):
 
-    def send_json(self, status, payload):
+    def send_json(self, status_code, payload):
         body = json.dumps(payload).encode("utf-8")
 
-        self.send_response(status)
+        self.send_response(status_code)
         self.send_header(
             "Content-Type",
             "application/json; charset=utf-8"
@@ -168,17 +265,19 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        if self.path.rstrip("/") == "/api":
-            self.send_json(200, {
-                "status": "success",
-                "message": "Admission Prediction API is running.",
-                "model_loaded": MODEL is not None
-            })
-        else:
+        if self.path.rstrip("/") != "/api":
             self.send_json(404, {
                 "status": "error",
                 "message": "Endpoint not found."
             })
+            return
+
+        self.send_json(200, {
+            "status": "success",
+            "message": "Admission Prediction API is running.",
+            "model_file_exists": MODEL_PATH.is_file(),
+            "model_loaded": _MODEL is not None,
+        })
 
     def do_POST(self):
         if self.path.rstrip("/") != "/api":
@@ -189,90 +288,48 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            length = int(
+            content_length = int(
                 self.headers.get("Content-Length", "0")
             )
 
-            if length <= 0 or length > 10000:
+            if content_length <= 0 or content_length > 10000:
                 self.send_json(400, {
                     "status": "error",
                     "message": "Invalid request size."
                 })
                 return
 
-            payload = json.loads(
-                self.rfile.read(length).decode("utf-8")
-            )
+            raw_body = self.rfile.read(content_length)
 
-            values = validate_input(payload)
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                self.send_json(400, {
+                    "status": "error",
+                    "message": "Request body must contain valid JSON."
+                })
+                return
 
-            raw_data = pd.DataFrame(
-                [values],
-                columns=RAW_FEATURES
-            )
+            result = make_prediction(payload)
+            self.send_json(200, result)
 
-            engineered_data = create_engineered_features(
-                raw_data
-            )
-
-            trained_model = load_model()
-
-            expected_count = getattr(
-                trained_model,
-                "n_features_in_",
-                None
-            )
-
-            if (
-                expected_count is not None
-                and expected_count != engineered_data.shape[1]
-            ):
-                raise RuntimeError(
-                    "Model feature count does not match "
-                    "the engineered input."
-                )
-
-            if hasattr(
-                trained_model,
-                "feature_names_in_"
-            ):
-                expected_names = list(
-                    trained_model.feature_names_in_
-                )
-
-                if expected_names != list(
-                    engineered_data.columns
-                ):
-                    raise RuntimeError(
-                        "Model feature names/order do not match."
-                    )
-
-            prediction = float(
-                trained_model.predict(engineered_data)[0]
-            )
-
-            self.send_json(200, {
-                "status": "success",
-                "predicted_chance": prediction,
-                "predicted_percentage": prediction * 100,
-                "interpretation": (
-                    "Model estimate only; not an admission decision."
-                )
-            })
-
-        except (ValueError, json.JSONDecodeError) as exc:
+        except ValueError as exc:
             self.send_json(400, {
                 "status": "error",
                 "message": str(exc)
             })
 
         except Exception as exc:
-    print("PREDICTION ERROR:", repr(exc))
-    traceback.print_exc()
+            logger.error(
+                "PREDICTION ERROR: %s: %s",
+                type(exc).__name__,
+                str(exc)
+            )
+            logger.error(traceback.format_exc())
 
-    self.send_json(500, {
-        "status": "error",
-        "message": (
-            "Prediction failed. Check Vercel runtime logs."
-        )
-    })
+            self.send_json(500, {
+                "status": "error",
+                "message": (
+                    "Prediction failed. Check Vercel runtime logs."
+                )
+            })
